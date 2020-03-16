@@ -102,7 +102,6 @@ public interface FooRepository extends PagingAndSortingRepository<Foo, Long>
 |---|---|---|---|---|
 |curl '/foos/1' -X GET -H 'query: true'   |             | read | [@HandleAfterRead](#handleafterread)  |   json |
 |curl '/foos'   -X POST -H 'query: true' -d '{"name" : ...}' |  [@HandleBeforeRead](#handlebeforeread) | search |    | json |
-|curl '/foos'   -X POST -H 'query: true' -H 'csv: true' -d '{"name" : ...}' | [@HandleBeforeRead](#handlebeforeread)  | search |   | csv |
 
 
 ```java
@@ -117,7 +116,7 @@ public class FooHandler {
 	
 	@HandleBeforeRead
 	public void onBeforeRead(Foo entity, Object query) { 
-		/* Before [GET] /foos -H 'query: true' */	
+		/* Before [POST] /foos -H 'query: true' */	
 	}
 }
 ```
