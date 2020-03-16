@@ -18,19 +18,27 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.query.PartTreeSpecification;
+import org.springframework.data.jpa.repository.query.SpecificationBuilder;
 import org.springframework.data.mapping.PersistentEntity;
 import org.springframework.data.mapping.context.PersistentEntities;
 import org.springframework.data.projection.ProjectionFactory;
+import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.querydsl.binding.QuerydslPredicate;
+import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.data.repository.support.RepositoryInvoker;
 import org.springframework.data.repository.support.RepositoryInvokerFactory;
 import org.springframework.data.rest.core.config.RepositoryRestConfiguration;
 import org.springframework.data.rest.core.event.AfterCreateEvent;
 import org.springframework.data.rest.core.event.AfterDeleteEvent;
+import org.springframework.data.rest.core.event.AfterReadEvent;
 import org.springframework.data.rest.core.event.AfterSaveEvent;
 import org.springframework.data.rest.core.event.BeforeCreateEvent;
 import org.springframework.data.rest.core.event.BeforeDeleteEvent;
+import org.springframework.data.rest.core.event.BeforeReadEvent;
 import org.springframework.data.rest.core.event.BeforeSaveEvent;
 import org.springframework.data.rest.core.mapping.ResourceMappings;
 import org.springframework.data.rest.core.mapping.ResourceMetadata;
@@ -60,14 +68,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.RequestHeader;
-//import org.springframework.web.bind.annotation.RequestMapping;
-//import org.springframework.web.bind.annotation.RequestMethod;
-//import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.querydsl.core.BooleanBuilder;
 
 @SuppressWarnings({ "unchecked" , "rawtypes"})
 public class AbstractRepositoryController {
@@ -628,5 +635,71 @@ public class AbstractRepositoryController {
 		}).orElseThrow(() -> new ResourceNotFoundException());
 	}
 	
+	
+	
+	/////////////////////////////////////////////////////////////////////
+	// added..
+	////////////////////////////////////////////////////////////////////
+	public ResponseEntity<Resource<?>> getItemResourceWithEvent(RootResourceInformation resourceInformation,
+			@BackendId Serializable id, final PersistentEntityResourceAssembler assembler, @RequestHeader HttpHeaders headers)
+			throws HttpRequestMethodNotSupportedException {
+
+		return getItemResource(resourceInformation, id).map(it -> {
+
+			//....................
+			publisher.publishEvent(new AfterReadEvent(it));
+			//...................
+			
+			PersistentEntity<?, ?> entity = resourceInformation.getPersistentEntity();
+
+			return getResourceStatus().getStatusAndHeaders(headers, it, entity).toResponseEntity(//
+					() -> assembler.toFullResource(it));
+
+		}).orElseGet(() -> new ResponseEntity<Resource<?>>(HttpStatus.NOT_FOUND));
+		
+	}
+
+	protected Iterable<?> getCollectionResourceWithEvent(final RootResourceInformation resourceInformation, final String partTree, final boolean unpaged, final DefaultedPageable pageable, final Sort sort, final Object content){
+		
+		Repository repository = getRepositoryFor(resourceInformation);
+		if(ClassUtils.isAssignableValue(QuerydslPredicateExecutor.class, repository)) {
+
+			QuerydslPredicateExecutor executor = (QuerydslPredicateExecutor)repository;
+
+			BooleanBuilder predicate = new BooleanBuilder();
+			publisher.publishEvent(new BeforeReadEvent(content, predicate));
+
+			if(unpaged) {
+				return executor.findAll(predicate, sort) ;
+			}else {
+				return executor.findAll(predicate, pageable.getPageable()) ;
+			}
+			
+			
+		}else if(ClassUtils.isAssignableValue(JpaSpecificationExecutor.class, repository)) {
+			
+			
+			JpaSpecificationExecutor executor = (JpaSpecificationExecutor)repository;
+			
+			Specification specification = null;
+			if(StringUtils.hasText(partTree)) {
+				specification = new PartTreeSpecification(partTree, content);
+			}else {
+				specification = new SpecificationBuilder();
+				publisher.publishEvent(new BeforeReadEvent(content, specification));
+			}
+			
+			
+			if(unpaged) {
+				return executor.findAll(specification, sort) ;
+			}else {
+				return executor.findAll(specification, pageable.getPageable()) ;
+			}
+			
+		}else {
+			return null;
+		}
+		
+	}
 	
 }

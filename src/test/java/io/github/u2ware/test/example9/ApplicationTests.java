@@ -16,6 +16,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+
 import io.github.u2ware.test.RestMockMvc;
 
 
@@ -51,6 +54,7 @@ public class ApplicationTests {
 	
 	
 	private @Autowired FooDocs fooDocs;
+	private @Autowired FooRepository fooRepository;
 	
 	@Test
 	public void contextLoads() throws Exception {
@@ -69,5 +73,16 @@ public class ApplicationTests {
 		$.GET("{foo1}").H("query", "true").is2xx().andDo(fooDocs.read());
 		$.GET("/foos").H("query", "true").C("name","hello").is2xx().andDo(fooDocs.search());
 
+		
+		Iterable<Foo> foos = fooRepository.findAll();
+		logger.info(foos);
+		
+		CsvMapper csvMapper = new CsvMapper();
+		CsvSchema csvSchema = csvMapper.schemaFor(Foo.class);
+		logger.info(csvMapper.writerFor(Iterable.class).with(csvSchema).writeValueAsString(foos));
+		
+		
+		
+		$.GET("/foos").H("query", "true").H("csv", "true").C("name", "hello").is2xx();
 	}
 }
