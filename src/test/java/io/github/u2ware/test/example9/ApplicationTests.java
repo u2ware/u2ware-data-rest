@@ -74,15 +74,23 @@ public class ApplicationTests {
 		$.GET("/foos").H("query", "true").C("name","hello").is2xx().andDo(fooDocs.search());
 
 		
-		Iterable<Foo> foos = fooRepository.findAll();
-		logger.info(foos);
+//		Iterable<Foo> foos = fooRepository.findAll();
+//		logger.info(foos);
+//		
+//		CsvMapper csvMapper = new CsvMapper();
+//		CsvSchema csvSchema = csvMapper.schemaFor(Foo.class);
+//		logger.info(csvMapper.writerFor(Iterable.class).with(csvSchema).writeValueAsString(foos));
+//		
+//		
+//		
+//		$.GET("/foos").H("query", "true").H("csv", "true").C("name", "hello").is2xx();
 		
-		CsvMapper csvMapper = new CsvMapper();
-		CsvSchema csvSchema = csvMapper.schemaFor(Foo.class);
-		logger.info(csvMapper.writerFor(Iterable.class).with(csvSchema).writeValueAsString(foos));
 		
+		$.GET("/foos/search/searchAllName").H("query", "true").is2xx();
+		$.GET("/foos/search/searchAllName").is5xx();
 		
+		$.GET("/foos/search/findByName").H("query", "true").P("name", "hello").is2xx();
+		$.GET("/foos/search/findByName").P("name", "hello").is2xx();
 		
-		$.GET("/foos").H("query", "true").H("csv", "true").C("name", "hello").is2xx();
 	}
 }

@@ -5,16 +5,21 @@ import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.PUT;
 
 import java.io.Serializable;
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.MethodParameter;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -28,6 +33,7 @@ import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.querydsl.QuerydslPredicateExecutor;
 import org.springframework.data.querydsl.binding.QuerydslPredicate;
 import org.springframework.data.repository.Repository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.repository.support.Repositories;
 import org.springframework.data.repository.support.RepositoryInvoker;
 import org.springframework.data.repository.support.RepositoryInvokerFactory;
@@ -53,6 +59,8 @@ import org.springframework.data.rest.webmvc.support.DefaultedPageable;
 import org.springframework.data.rest.webmvc.support.ETag;
 import org.springframework.data.rest.webmvc.support.ETagDoesntMatchException;
 import org.springframework.data.rest.webmvc.support.RepositoryEntityLinks;
+import org.springframework.data.util.ClassTypeInformation;
+import org.springframework.data.util.TypeInformation;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.Links;
@@ -61,16 +69,21 @@ import org.springframework.hateoas.Resource;
 import org.springframework.hateoas.ResourceSupport;
 import org.springframework.hateoas.Resources;
 import org.springframework.hateoas.UriTemplate;
+import org.springframework.hateoas.core.AnnotationAttribute;
 import org.springframework.hateoas.core.EmbeddedWrappers;
+import org.springframework.hateoas.core.MethodParameters;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ClassUtils;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -594,14 +607,22 @@ public class AbstractRepositoryController {
 			List<Object> content = Arrays.<Object> asList(WRAPPERS.emptyCollectionOf(domainType));
 			return new Resources<Object>(content, getDefaultSelfLink());
 		}
-
-		List<Resource<Object>> resources = new ArrayList<Resource<Object>>();
-
-		for (Object obj : entities) {
-			resources.add(obj == null ? null : assembler.toResource(obj));
-		}
-
-		return new Resources<Resource<Object>>(resources, getDefaultSelfLink());
+		
+		
+		return this.entities.getPersistentEntity(domainType).map(a->{
+			
+			List<Resource<Object>> resources = new ArrayList<Resource<Object>>();
+			for (Object obj : entities) {
+				resources.add(obj == null ? null : assembler.toResource(obj));
+			}
+			return new Resources<Resource<Object>>(resources, getDefaultSelfLink());
+			
+		}).orElseGet(()->{
+			
+			return new Resources(entities, getDefaultSelfLink());
+		});
+		
+		
 	}
 
 	protected Link getDefaultSelfLink() {
@@ -628,12 +649,96 @@ public class AbstractRepositoryController {
 			if (!entity.getType().isInstance(it)) {
 				return ResponseEntity.ok(it);
 			}
-
+			
 			return resourceStatus.getStatusAndHeaders(headers, it, entity).toResponseEntity(//
 					() -> assembler.toFullResource(it));
 
 		}).orElseThrow(() -> new ResourceNotFoundException());
 	}
+	
+	
+	
+	
+	/////////////////////////////////////////////////////////////////////
+	// SearchController
+	////////////////////////////////////////////////////////////////////
+	protected Method checkExecutability(RootResourceInformation resourceInformation, String searchName) {
+
+		SearchResourceMappings searchMapping = verifySearchesExposed(resourceInformation);
+
+		Method method = searchMapping.getMappedMethod(searchName);
+
+		if (method == null) {
+			throw new ResourceNotFoundException();
+		}
+
+		return method;
+	}	
+	
+	protected static SearchResourceMappings verifySearchesExposed(RootResourceInformation resourceInformation) {
+
+		SearchResourceMappings resourceMappings = resourceInformation.getSearchMappings();
+
+		if (!resourceMappings.isExported()) {
+			throw new ResourceNotFoundException();
+		}
+
+		return resourceMappings;
+	}
+	
+	protected static List<Object> prepareUris(List<Object> source) {
+
+		if (source == null || source.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<Object> result = new ArrayList<Object>(source.size());
+
+		for (Object element : source) {
+
+			try {
+				result.add(new URI(element.toString()));
+			} catch (URISyntaxException o_O) {
+				result.add(element);
+			}
+		}
+
+		return result;
+	}
+	
+	protected Optional<Object> executeQueryMethod(final RepositoryInvoker invoker,
+			@RequestParam MultiValueMap<String, Object> parameters, Method method, DefaultedPageable pageable, Sort sort,
+			PersistentEntityResourceAssembler assembler) {
+
+		MultiValueMap<String, Object> result = new LinkedMultiValueMap<String, Object>(parameters);
+		MethodParameters methodParameters = new MethodParameters(method, new AnnotationAttribute(Param.class));
+		List<MethodParameter> parameterList = methodParameters.getParameters();
+		List<TypeInformation<?>> parameterTypeInformations = ClassTypeInformation.from(method.getDeclaringClass())
+				.getParameterTypes(method);
+
+		for (Entry<String, List<Object>> entry : parameters.entrySet()) {
+
+			MethodParameter parameter = methodParameters.getParameter(entry.getKey());
+
+			if (parameter == null) {
+				continue;
+			}
+
+			int parameterIndex = parameterList.indexOf(parameter);
+			TypeInformation<?> domainType = parameterTypeInformations.get(parameterIndex).getActualType();
+
+			ResourceMetadata metadata = mappings.getMetadataFor(domainType.getType());
+
+			if (metadata != null && metadata.isExported()) {
+				result.put(parameter.getParameterName(), prepareUris(entry.getValue()));
+			}
+		}
+
+		return invoker.invokeQueryMethod(method, result, pageable.getPageable(), sort);
+	}
+	
+	
+	
 	
 	
 	
