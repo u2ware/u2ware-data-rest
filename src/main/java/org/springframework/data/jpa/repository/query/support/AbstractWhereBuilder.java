@@ -223,12 +223,12 @@ public abstract class AbstractWhereBuilder<X> {
 		}
 
 		public W like(String property, String right) {
-			if(StringUtils.hasText(right)) return where;
+			if(StringUtils.isEmpty(right)) return where;
 			return add(builder.getPath().getString(property).like(right));
 		}
 		
 		public W notLike(String property, String right) {
-			if(StringUtils.hasText(right)) return where;
+			if(StringUtils.isEmpty(right)) return where;
 			return add(builder.getPath().getString(property).notLike(right));
 		}
 
