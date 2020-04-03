@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
@@ -91,6 +92,17 @@ public class ApplicationTests {
 		
 		$.GET("/foos/search/findByName").H("query", "true").P("name", "hello").is2xx();
 		$.GET("/foos/search/findByName").P("name", "hello").is2xx();
+
+		
+		$.POST("/foos").H("query", "true").H("csv", "true").C().is2xx();
+		
+//		
+//		CsvMapper csvMapper = new CsvMapper();
+//
+//		CsvSchema csvSchema = csvMapper.schemaFor(Foo.class).withHeader();
+//		ObjectWriter writer = csvMapper.writerFor(Foo.class).with(csvSchema);
+////		writer.writeValue(System.out, fooRepository.findAll());
+//		writer.writeValues(System.out).writeAll(fooRepository.findAll());
 		
 	}
 }

@@ -5,20 +5,24 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.querydsl.binding.QuerydslPredicate;
 import org.springframework.data.repository.support.RepositoryInvoker;
 import org.springframework.data.rest.core.mapping.ResourceType;
 import org.springframework.data.rest.webmvc.support.DefaultedPageable;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.util.StringUtils;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.View;
-import org.springframework.web.servlet.view.AbstractView;
 
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.dataformat.csv.CsvMapper;
 import com.fasterxml.jackson.dataformat.csv.CsvSchema;
 
@@ -33,10 +37,11 @@ public class RepositoryCsvController extends AbstractRepositoryController {
 	public View executeQuery(@QuerydslPredicate RootResourceInformation resourceInformation,
 			@RequestHeader(name = "partTree", required = false) String partTree,
 			@RequestParam(name = "unpaged", required = false) boolean unpaged,
+			@RequestParam(name = "filename", required = false) String filename,
 			DefaultedPageable pageable, Sort sort, 
 			PersistentEntityResource payload, 
 			PersistentEntityResourceAssembler assembler)throws ResourceNotFoundException, HttpRequestMethodNotSupportedException {
-		
+
 		resourceInformation.verifySupportedMethod(HttpMethod.GET, ResourceType.COLLECTION);
 
 		//////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,34 +60,47 @@ public class RepositoryCsvController extends AbstractRepositoryController {
 			throw new ResourceNotFoundException();
 		}
 		
-		
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		//
 		//////////////////////////////////////////////////////////////////////////////////////////////
-		return new CsvView(resourceInformation.getDomainType(), results);
+		return new CsvView(resourceInformation.getDomainType(), results, filename);
 	}
 	
 	
 	
 	
-	public static class CsvView extends AbstractView{
+	public static class CsvView implements View{
 
-		private CsvMapper csvMapper;
+		protected Log logger = LogFactory.getLog(getClass());
+
+		private Class<?> type;
+		private Iterable<?> results;
+		private String filename;
 		
-		private CsvView(Class<?> type, Iterable<?> results) {
-			csvMapper = new CsvMapper();
-			CsvSchema csvSchema = csvMapper.schemaFor(type);
-			csvMapper.writerFor(Iterable.class).with(csvSchema);
+		private CsvView(Class<?> type, Iterable<?> results, String filename) {
+			this.type = type;
+			this.results = results;
+			this.filename = StringUtils.hasText(filename) ? filename : System.currentTimeMillis()+".csv";
 		}
 
 		@Override
-		public String getContentType() {
-			return "text/csv";
-		}
-		
-		@Override
-		protected void renderMergedOutputModel(Map<String, Object> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
-			csvMapper.writeValue(response.getOutputStream(), model);
+		public void render(Map<String, ?> model, HttpServletRequest request, HttpServletResponse response) throws Exception {
+			try {
+				response.setContentType("application/octet-stream;charset=UTF-8");
+				response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+				response.setHeader("Content-Transfer-Encoding", "binary");
+
+				
+				CsvMapper csvMapper = new CsvMapper();
+				CsvSchema csvSchema = csvMapper.schemaFor(type).withHeader();
+				ObjectWriter objectWriter = csvMapper.writerFor(type).with(csvSchema);
+				
+				objectWriter.writeValues(response.getOutputStream()).writeAll(results);
+				
+			}catch(Exception e) {
+				logger.info("", e);
+				response.sendError(HttpStatus.NOT_FOUND.value(), e.getMessage());
+			}
 		}
 
 	}

@@ -5,6 +5,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 
 @Entity @Table(name="example9_foo")
@@ -16,6 +18,7 @@ public @Data class Foo {
 	
 	private String name;
 	private Integer age;
+	@JsonIgnore private String oops;
 
 
 	public Foo() {
