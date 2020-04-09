@@ -18,4 +18,10 @@ public interface FooRepository extends PagingAndSortingRepository<Foo, Long>, Qu
 	@Query("SELECT distinct(f.name) FROM Foo f")
 	List<String> searchAllName();
 	
+	@Query("SELECT count(*) FROM Foo f")
+	int searchCount();
+	
+	@Query("SELECT max(f.name) FROM Foo f")
+	String searchName();
+	
 }
