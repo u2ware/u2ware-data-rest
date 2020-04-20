@@ -18,6 +18,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanClassLoaderAware;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -39,6 +40,7 @@ import org.springframework.data.rest.core.event.AfterCreateEvent;
 import org.springframework.data.rest.core.event.AfterSaveEvent;
 import org.springframework.data.rest.core.event.BeforeCreateEvent;
 import org.springframework.data.rest.core.event.BeforeSaveEvent;
+import org.springframework.data.rest.core.mapping.MethodResourceMapping;
 import org.springframework.data.rest.core.mapping.ResourceMappings;
 import org.springframework.data.rest.core.mapping.ResourceMetadata;
 import org.springframework.data.rest.core.mapping.ResourceType;
@@ -72,17 +74,61 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-public class AbstractRepositoryEntityAndSearchController implements ApplicationContextAware, BeanClassLoaderAware, ApplicationEventPublisherAware {
+public class AbstractSpringDataRestController implements ApplicationContextAware, BeanClassLoaderAware, ApplicationEventPublisherAware, InitializingBean {
 
 	protected Log logger = LogFactory.getLog(getClass());
-
-	private static final EmbeddedWrappers WRAPPERS = new EmbeddedWrappers(false);
-	protected @Autowired PagedResourcesAssembler<Object> pagedResourcesAssembler;
 	
-	/////////////////////////////////////
-	// AbstractRepositoryRestController ## toResources 수정함.
-	/////////////////////////////////////
-	@SuppressWarnings({ "rawtypes" })
+	protected ClassLoader beanClassLoader; 
+	protected ApplicationContext applicationContext;
+	protected ApplicationEventPublisher publisher;
+	
+	protected @Autowired PagedResourcesAssembler<Object> pagedResourcesAssembler;
+	protected @Autowired RepositoryRestConfiguration config;
+	protected @Autowired RepositoryEntityLinks entityLinks;
+	protected @Autowired HttpHeadersPreparer headersPreparer;
+	protected @Autowired Repositories repositories;
+	protected @Autowired ResourceMappings mappings;
+	protected @Autowired PersistentEntities entities;
+	protected @Autowired RepositoryInvokerFactory invokerFactory;
+	protected @Autowired SelfLinkProvider linkProvider;
+	protected @Autowired Associations links;
+	
+	protected ResourceStatus resourceStatus;
+	protected ProjectionFactory projectionFactory;
+	protected ProjectionDefinitions projectionDefinitions;
+
+	@Override
+	public void setBeanClassLoader(ClassLoader beanClassLoader) {
+		this.beanClassLoader = beanClassLoader;
+	}
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
+	}
+	@Override
+	public void setApplicationEventPublisher(ApplicationEventPublisher publisher) {
+		this.publisher = publisher;
+	}
+	
+	@Override
+	public void afterPropertiesSet() throws Exception {
+		this.resourceStatus = ResourceStatus.of(headersPreparer);
+		
+		SpelAwareProxyProjectionFactory f = new SpelAwareProxyProjectionFactory();
+		f.setBeanFactory(applicationContext);
+		f.setBeanClassLoader(beanClassLoader);
+		this.projectionFactory = f;
+		
+		this.projectionDefinitions = config.getProjectionConfiguration();
+	}
+	
+	//////////////////////////////////////////////////////////////////
+	// AbstractRepositoryRestController 
+	//////////////////////////////////////////////////////////////////
+	private static final EmbeddedWrappers WRAPPERS = new EmbeddedWrappers(false);
+
+	
+	@SuppressWarnings("rawtypes")
 	protected Link resourceLink(RootResourceInformation resourceLink, Resource resource) {
 
 		ResourceMetadata repoMapping = resourceLink.getResourceMetadata();
@@ -100,29 +146,12 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		if (source instanceof Page) {
 			Page<Object> page = (Page<Object>) source;
 			return entitiesToResources(page, assembler, domainType, baseLink);
-			
 		} else if (source instanceof Iterable) {
-			
-			Iterable<Object> iterable = (Iterable<Object>) source;
-			return entitiesToResources(iterable, assembler, domainType);
-			
+			return entitiesToResources((Iterable<Object>) source, assembler, domainType);
 		} else {
 			return new Resources(EMPTY_RESOURCE_LIST);
 		}
 	}
-	
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 
 	protected Resources<?> entitiesToResources(Page<Object> page, PersistentEntityResourceAssembler assembler,
 			Class<?> domainType, Optional<Link> baseLink) {
@@ -157,25 +186,12 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 	protected Link getDefaultSelfLink() {
 		return new Link(ServletUriComponentsBuilder.fromCurrentRequest().build().toUriString());
 	}
-	
-	
-	/////////////////////////////////////
-	// RepositoryEntityController
-	/////////////////////////////////////
-	protected @Autowired RepositoryEntityLinks entityLinks;
-	protected @Autowired RepositoryRestConfiguration config;
-	protected @Autowired HttpHeadersPreparer headersPreparer;
-	
 
-	private ResourceStatus resourceStatus;
-	protected synchronized ResourceStatus resourceStatus() {
-		if(resourceStatus == null) {
-			resourceStatus = ResourceStatus.of(headersPreparer);
-		}
-		return resourceStatus;
-	}
 	
-	
+	//////////////////////////////////////////////////////////////////
+	// RepositoryEntityController
+	//////////////////////////////////////////////////////////////////
+
 	protected List<Link> getCollectionResourceLinks(RootResourceInformation resourceInformation,
 			DefaultedPageable pageable) {
 
@@ -192,7 +208,7 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 
 		return links;
 	}
-
+	
 	protected ResponseEntity<ResourceSupport> saveAndReturn(Object domainObject, RepositoryInvoker invoker,
 			HttpMethod httpMethod, PersistentEntityResourceAssembler assembler, boolean returnBody) {
 
@@ -214,6 +230,7 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		}
 	}
 
+
 	protected ResponseEntity<ResourceSupport> createAndReturn(Object domainObject, RepositoryInvoker invoker,
 			PersistentEntityResourceAssembler assembler, boolean returnBody) {
 
@@ -230,6 +247,7 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		return ControllerUtils.toResponseEntity(HttpStatus.CREATED, headers, resource);
 	}
 
+
 	protected void addLocationHeader(HttpHeaders headers, PersistentEntityResourceAssembler assembler, Object source) {
 
 		String selfLink = assembler.getSelfLinkFor(source).getHref();
@@ -244,12 +262,34 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		return resourceInformation.getInvoker().invokeFindById(id);
 	}
 	
-	
-	/////////////////////////////////////
+	//////////////////////////////////////////////////////////////////
 	// RepositorySearchController
-	/////////////////////////////////////
-	protected @Autowired ResourceMappings mappings;
+	//////////////////////////////////////////////////////////////////
+	protected ResponseEntity<?> toResource(Optional<Object> source, final PersistentEntityResourceAssembler assembler,
+			Class<?> domainType, Optional<Link> baseLink, HttpHeaders headers, RootResourceInformation information) {
 
+		return source.map(it -> {
+
+			if (it instanceof Iterable) {
+				return ResponseEntity.ok(toResources((Iterable<?>) it, assembler, domainType, baseLink));
+			} else if (ClassUtils.isPrimitiveOrWrapper(it.getClass())) {
+				return ResponseEntity.ok(it);
+			}
+
+			PersistentEntity<?, ?> entity = information.getPersistentEntity();
+
+			// Returned value is not of the aggregates type - probably some projection
+			if (!entity.getType().isInstance(it)) {
+				return ResponseEntity.ok(it);
+			}
+
+			return resourceStatus.getStatusAndHeaders(headers, it, entity).toResponseEntity(//
+					() -> assembler.toFullResource(it));
+
+		}).orElseThrow(() -> new ResourceNotFoundException());
+	}
+	
+	
 	
 	protected Method checkExecutability(RootResourceInformation resourceInformation, String searchName) {
 
@@ -296,7 +336,6 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		return invoker.invokeQueryMethod(method, result, pageable.getPageable(), sort);
 	}
 
-
 	protected static SearchResourceMappings verifySearchesExposed(RootResourceInformation resourceInformation) {
 
 		SearchResourceMappings resourceMappings = resourceInformation.getSearchMappings();
@@ -307,6 +346,7 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 
 		return resourceMappings;
 	}
+
 
 	protected static List<Object> prepareUris(List<Object> source) {
 
@@ -327,72 +367,46 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 
 		return result;
 	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	protected ResponseEntity<?> toResource(Optional<Object> source, final PersistentEntityResourceAssembler assembler,
-			Class<?> domainType, Optional<Link> baseLink, HttpHeaders headers, RootResourceInformation information) {
-
-		return source.map(it -> {
-
-			if (it instanceof Iterable) {
-				
-				//modified...
-				if(ClassUtils.isAssignable(domainType, information.getDomainType())) {
-					return ResponseEntity.ok(toResources((Iterable<?>) it, assembler, domainType, baseLink));
-				}else {
-					return ResponseEntity.ok(new Resources((Iterable<?>) it, getDefaultSelfLink()));
-				}
-				//modified...
+	
+	
+	//////////////////////////////////////////////////////////////////
+	// Addon
+	//////////////////////////////////////////////////////////////////
+	protected ResponseEntity<Resource<?>> toResponseEntity(Object source, PersistentEntityResourceAssembler assembler, HttpHeaders headers, RootResourceInformation information){
+		PersistentEntity<?, ?> entity = information.getPersistentEntity();
+		return resourceStatus.getStatusAndHeaders(headers, source, entity).toResponseEntity(() -> assembler.toFullResource(source));
+	}
+	
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	protected ResponseEntity<?> toResponseEntity(Object source, PersistentEntityResourceAssembler assembler, HttpHeaders headers, RootResourceInformation information, String search, Optional<Link> baseLink){
+		if (source instanceof Iterable) {
+			SearchResourceMappings searchMappings = information.getSearchMappings();
+			MethodResourceMapping methodMapping = searchMappings.getExportedMethodMappingForPath(search);
+			Class<?> returnType = methodMapping.getReturnedDomainType();
 			
-			} else if (ClassUtils.isPrimitiveOrWrapper(it.getClass())) {
-				return ResponseEntity.ok(it);
+			//modified...
+			if(ClassUtils.isAssignable(returnType, information.getDomainType())) {
+				return ResponseEntity.ok(toResources((Iterable<?>) source, assembler, information.getDomainType(), baseLink));
+			}else {
+				return ResponseEntity.ok(new Resources((Iterable<?>) source, getDefaultSelfLink()));
 			}
-
-			PersistentEntity<?, ?> entity = information.getPersistentEntity();
-
-			// Returned value is not of the aggregates type - probably some projection
-			if (!entity.getType().isInstance(it)) {
-				return ResponseEntity.ok(it);
-			}
-
-			return resourceStatus().getStatusAndHeaders(headers, it, entity).toResponseEntity(//
-					() -> assembler.toFullResource(it));
-
-		}).orElseThrow(() -> new ResourceNotFoundException());
+			//modified...
+		} else if (ClassUtils.isPrimitiveOrWrapper(source.getClass())) {
+			return ResponseEntity.ok(source);
+		}
+		
+		PersistentEntity<?, ?> entity = information.getPersistentEntity();
+		// Returned value is not of the aggregates type - probably some projection
+		if (! entity.getType().isInstance(source)) {
+			return ResponseEntity.ok(source);
+		}
+		return toResponseEntity(source, assembler, headers, information);
 	}
 	
-	
-	
-	///////////////////////////////////////////////////////////////
-	// Addon #1
-	///////////////////////////////////////////////////////////////
-	protected ClassLoader beanClassLoader; 
-	protected ApplicationContext applicationContext;
-	protected ApplicationEventPublisher publisher;
-	
-	@Override
-	public void setBeanClassLoader(ClassLoader beanClassLoader) {
-		this.beanClassLoader = beanClassLoader;
-	}
-	@Override
-	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-		this.applicationContext = applicationContext;
-	}
-	@Override
-	public void setApplicationEventPublisher(ApplicationEventPublisher publisher) {
-		this.publisher = publisher;
-	}
-
-	///////////////////////////////////////////////////////////////
-	// Addon #2
-	///////////////////////////////////////////////////////////////
-	protected @Autowired PersistentEntities entities;
-	protected @Autowired RepositoryInvokerFactory invokerFactory;
-	protected @Autowired SelfLinkProvider linkProvider;
-	protected @Autowired Associations links;
-	protected @Autowired RepositoryRestConfiguration repositoryRestConfiguration;
-	protected @Autowired Repositories repositories;
-	
+	//////////////////////////////////////////////////////////////////
+	// Addon
+	//////////////////////////////////////////////////////////////////
 	protected Optional<Object> getRepositoryFor(Class<?> domainType){
 		return repositories.getRepositoryFor(domainType);
 	}
@@ -406,34 +420,18 @@ public class AbstractRepositoryEntityAndSearchController implements ApplicationC
 		return invokerFactory.getInvokerFor(domainType);
 	}
 	
-	protected RootResourceInformation rootResourceInformation(Class<?> domainType) {
+	protected RootResourceInformation information(Class<?> domainType) {
 		return new RootResourceInformation(getMetadataFor(domainType), getPersistentEntity(domainType), getInvokerFor(domainType));
 	}
 	
-	private ProjectionFactory projectionFactory;
-	protected ProjectionFactory projectionFactory() {
-		if(projectionFactory == null) {
-			SpelAwareProxyProjectionFactory f = new SpelAwareProxyProjectionFactory();
-			f.setBeanFactory(applicationContext);
-			f.setBeanClassLoader(beanClassLoader);
-			this.projectionFactory = f;
-		}
-		return projectionFactory;
+	protected PersistentEntityResourceAssembler assembler() {
+		return assembler(null);
 	}
-	
-	private ProjectionDefinitions projectionDefinitions;
-	protected ProjectionDefinitions projectionDefinitions() {
-		if(projectionDefinitions == null) {
-			projectionDefinitions = repositoryRestConfiguration.getProjectionConfiguration();
-		}
-		return projectionDefinitions;
-	}
-	
-	protected PersistentEntityResourceAssembler persistentEntityResourceAssembler() {
-		return persistentEntityResourceAssembler();
-	}
-	protected PersistentEntityResourceAssembler persistentEntityResourceAssembler(String projection) {
-		PersistentEntityProjector projector = new PersistentEntityProjector(projectionDefinitions(), projectionFactory(), projection, links.getMappings());
+	//PersistentEntityResourceAssemblerArgumentResolver
+	protected PersistentEntityResourceAssembler assembler(String projection) {
+		PersistentEntityProjector projector = new PersistentEntityProjector(projectionDefinitions, projectionFactory, projection, links.getMappings());
 		return new PersistentEntityResourceAssembler(entities, projector, links, linkProvider);
 	}
+	
+	
 }

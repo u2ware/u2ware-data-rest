@@ -54,54 +54,54 @@ public class ApplicationTests {
 	public void contextLoads() throws Exception {
 		
 		
-		$.OPTIONS("/foos").is2xx();
-		$.OPTIONS("/bars").is2xx();
-		
-		$.HEAD("/foos").is2xx();
-		$.HEAD("/bars").is2xx();
-		
-		$.GET("/foos").is2xx();
-		$.GET("/bars").is2xx();
-
-		$.GET("/foos/"+f1).is2xx();
-		$.GET("/bars/"+f1).is2xx();
-		
-		$.GET("/foos/"+UUID.randomUUID()).is4xx();
-		$.GET("/bars/"+UUID.randomUUID()).is4xx();
-		
-		Map<String, Object> c = new HashMap<String,Object>();
-		c.put("name", "John");
-		c.put("age", 10);
-		c.put("id", f5);
-		
-		$.POST("/foos").C(c).is2xx();
-		$.POST("/bars").C(c).is2xx();
-		
-		$.DELETE("/foos/"+f5).is2xx();
-		$.DELETE("/bars/"+f4).is2xx();
-
-		
-		Map<String, Object> u = new HashMap<String,Object>();
-		u.put("name", "John");
-		u.put("age", 10);
-		u.put("id", f3);
-		
-		
-		$.PUT("/foos/"+f3).C(u).is2xx();
-		$.PUT("/bars/"+f3).C(u).is2xx();
-		
-
-		$.OPTIONS("/foos/"+f3).is2xx();
-		$.OPTIONS("/bars/"+f3).is2xx();
-
-		$.HEAD("/foos/"+f3).is2xx();
-		$.HEAD("/bars/"+f3).is2xx();
-		
-		
-		/////////////////////////////////////
-		$.OPTIONS("/bazes").is2xx();
-		$.HEAD("/bazes").is2xx();
-		$.POST("/bazes").is4xx();
-		$.GET("/bazes").is2xx();
+//		$.OPTIONS("/foos").is2xx();
+//		$.OPTIONS("/bars").is2xx();
+//		
+//		$.HEAD("/foos").is2xx();
+//		$.HEAD("/bars").is2xx();
+//		
+//		$.GET("/foos").is2xx();
+//		$.GET("/bars").is2xx();
+//
+//		$.GET("/foos/"+f1).is2xx();
+//		$.GET("/bars/"+f1).is2xx();
+//		
+//		$.GET("/foos/"+UUID.randomUUID()).is4xx();
+//		$.GET("/bars/"+UUID.randomUUID()).is4xx();
+//		
+//		Map<String, Object> c = new HashMap<String,Object>();
+//		c.put("name", "John");
+//		c.put("age", 10);
+//		c.put("id", f5);
+//		
+//		$.POST("/foos").C(c).is2xx();
+//		$.POST("/bars").C(c).is2xx();
+//		
+//		$.DELETE("/foos/"+f5).is2xx();
+//		$.DELETE("/bars/"+f4).is2xx();
+//
+//		
+//		Map<String, Object> u = new HashMap<String,Object>();
+//		u.put("name", "John");
+//		u.put("age", 10);
+//		u.put("id", f3);
+//		
+//		
+//		$.PUT("/foos/"+f3).C(u).is2xx();
+//		$.PUT("/bars/"+f3).C(u).is2xx();
+//		
+//
+//		$.OPTIONS("/foos/"+f3).is2xx();
+//		$.OPTIONS("/bars/"+f3).is2xx();
+//
+//		$.HEAD("/foos/"+f3).is2xx();
+//		$.HEAD("/bars/"+f3).is2xx();
+//		
+//		
+//		/////////////////////////////////////
+//		$.OPTIONS("/bazes").is2xx();
+//		$.HEAD("/bazes").is2xx();
+//		$.POST("/bazes").is4xx();
+//		$.GET("/bazes").is2xx();
 	}
 }

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
-import org.springframework.data.rest.webmvc.AbstractRestController;
 import org.springframework.data.rest.webmvc.BasePathAwareController;
 import org.springframework.data.rest.webmvc.PersistentEntityResourceAssembler;
 import org.springframework.data.rest.webmvc.support.DefaultedPageable;
@@ -16,7 +15,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 @BasePathAwareController
 @RequestMapping("/bazes")
-public class BazController extends AbstractRestController<Baz, UUID>{
+public class BazController extends RepositoryExampleController<Baz, UUID>{
 	
 
 	@RequestMapping(method = RequestMethod.OPTIONS)
@@ -30,17 +29,17 @@ public class BazController extends AbstractRestController<Baz, UUID>{
 	}
 	
 	
-	@ResponseBody
-	@RequestMapping(method = RequestMethod.GET)
-	public Resources<?> getCollectionResource(DefaultedPageable pageable, Sort sort, PersistentEntityResourceAssembler assembler) throws Exception {
-		ArrayList<Baz> source = new ArrayList<>();
-		source.add(new Baz(UUID.randomUUID(), "a", 1));
-		source.add(new Baz(UUID.randomUUID(), "b", 1));
-		source.add(new Baz(UUID.randomUUID(), "c", 1));
-
-		logger.info(assembler);
-		logger.info(assembler);
-		logger.info(assembler);
-		return new Resources<>(source, getDefaultSelfLink());
-	}
+//	@ResponseBody
+//	@RequestMapping(method = RequestMethod.GET)
+//	public Resources<?> getCollectionResource(DefaultedPageable pageable, Sort sort, PersistentEntityResourceAssembler assembler) throws Exception {
+//		ArrayList<Baz> source = new ArrayList<>();
+//		source.add(new Baz(UUID.randomUUID(), "a", 1));
+//		source.add(new Baz(UUID.randomUUID(), "b", 1));
+//		source.add(new Baz(UUID.randomUUID(), "c", 1));
+//
+//		logger.info(assembler);
+//		logger.info(assembler);
+//		logger.info(assembler);
+//		return new Resources<>(source, getDefaultSelfLink());
+//	}
 }

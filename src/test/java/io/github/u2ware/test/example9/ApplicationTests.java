@@ -75,38 +75,28 @@ public class ApplicationTests {
 		$.POST("/foos").H("query", "true").C("name","hello").is2xx().andDo(fooDocs.search());
 
 		
-		
 		logger.info(fooRepository.searchAllName());
 		logger.info(fooRepository.searchCount());
 		logger.info(fooRepository.searchName());
 		
 		
 		$.GET("/foos/search/searchCount").is2xx();
-		$.GET("/foos/search/searchName").is2xx();
-		$.GET("/foos/search/searchAllName").is5xx();
-		
 		$.GET("/foos/search/searchCount").H("query", "true").is2xx();
+		
+		$.GET("/foos/search/searchName").is2xx();
 		$.GET("/foos/search/searchName").H("query", "true").is2xx();
+		
+		$.GET("/foos/search/searchAllName").is5xx();
 		$.GET("/foos/search/searchAllName").H("query", "true").is2xx();
 		
+		for(int i = 0 ; i < 100; i++) {
+			$.POST("/foos").C(fooDocs.get()).is2xx();
+		}
 		
+		$.POST("/foos").H("query", "true").H("csv", "true").C().is2xx();
+		$.POST("/foos").H("query", "true").H("unpaged", "true").H("csv", "true").C().is2xx();
 		
-		
-//		
-//		$.GET("/foos/search/findByName").H("query", "true").P("name", "hello").is2xx();
-//		$.GET("/foos/search/findByName").P("name", "hello").is2xx();
-//
-//		
-//		$.POST("/foos").H("query", "true").H("csv", "true").C().is2xx();
-//		$.GET("/foos").H("query", "true").H("csv", "true").C("name", "hello").is2xx();
-		
-//		
-//		CsvMapper csvMapper = new CsvMapper();
-//
-//		CsvSchema csvSchema = csvMapper.schemaFor(Foo.class).withHeader();
-//		ObjectWriter writer = csvMapper.writerFor(Foo.class).with(csvSchema);
-////		writer.writeValue(System.out, fooRepository.findAll());
-//		writer.writeValues(System.out).writeAll(fooRepository.findAll());
-		
+		$.POST("/foos").H("query", "true").C().is2xx();
+		$.POST("/foos").H("query", "true").H("unpaged", "true").C().is2xx();
 	}
 }
