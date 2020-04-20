@@ -11,7 +11,7 @@
 <dependency>
     <groupId>io.github.u2ware</groupId>
     <artifactId>u2ware-data-rest</artifactId>
-    <version>2.1.5.1.RELEASE</version>
+    <version>2.1.5.2.RELEASE</version>
 </dependency>
 ```
 
@@ -53,7 +53,7 @@ public interface FooRepository extends PagingAndSortingRepository<Foo, Long>{
 |---|---|---|---|---|
 |curl '/foos'   -X POST -d '{"name" : ...}'          |  @HandleBeforeCreate | create     | @HandleAfterCreate |json|
 |curl '/foos/1' -X GET                               |                      | read       |                    |json|
-|curl '/foos/1' -X PATCH(or PUT) -d '{"name" : ...}' |  @HandleBeforeSave   | update     | @HandleAfterSave   |json|
+|curl '/foos/1' -X PUT(or PATCH) -d '{"name" : ...}' |  @HandleBeforeSave   | update     | @HandleAfterSave   |json|
 |curl '/foos/1' -X DELETE                            |  @HandleBeforeDelete | delete     | @HandleAfterDelete |json|
 |curl '/foos/'  -X GET                               |                      | search all |                    |json|  
 |curl '/foos/search/findByName?name=hello' -X GET    |                      | search     |                    |json|   
