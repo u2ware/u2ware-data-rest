@@ -227,7 +227,7 @@ public class FooHandler {
 	public void onBeforeRead(Foo entity, Specification<Foo> specification) {
 
 		// method chain style 의  검색 조건 생성 
-		JpaSpecificationBuilder.of(Bar.class)   
+		JpaSpecificationBuilder.of(Foo.class)   
 			.where()
 			.and().eq("name", entity.getName())
 			.andStart()
