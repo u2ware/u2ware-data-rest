@@ -143,7 +143,7 @@ public class ArticleHandler {
 
 # @HandleBeforeRead 
 
-(1) `Spring Data Repository` 가 [QuerydslPredicateExecutor<T>](https://docs.spring.io/spring-data/commons/docs/2.3.6.RELEASE/api/index.html?org/springframework/data/querydsl/QuerydslPredicateExecutor.html) 를 확장한 경우, 이벤트 핸들러에  [Predicate](http://www.querydsl.com/static/querydsl/4.3.1/apidocs/index.html?com/querydsl/core/types/Predicate.html) 객체가 전달됩니다.
+(1) `Spring Data Repository` 가 [QuerydslPredicateExecutor<T>](https://docs.spring.io/spring-data/commons/docs/2.3.6.RELEASE/api/index.html?org/springframework/data/querydsl/QuerydslPredicateExecutor.html) 를 확장한 경우, 이벤트 핸들러에  [Predicate](http://www.querydsl.com/static/querydsl/4.2.1/apidocs/index.html?com/querydsl/core/types/Predicate.html) 객체가 전달됩니다.
 
 ```java
 public interface HelloRepository extends PagingAndSortingRepository<Hello, Long>
@@ -152,7 +152,9 @@ public interface HelloRepository extends PagingAndSortingRepository<Hello, Long>
 }
 ```
 ```java
-import com.querydsl.core.BooleanBuilder;
+import io.github.u2ware.data.rest.core.annotation.HandleBeforeRead;
+
+import com.querydsl.core.types.Predicate;
 
 @Component
 @RepositoryEventHandler
@@ -174,6 +176,8 @@ public interface WorldRepository extends PagingAndSortingRepository<World, Long>
 }
 ```
 ```java
+import io.github.u2ware.data.rest.core.annotation.HandleBeforeRead;
+
 import org.springframework.data.jpa.domain.Specification;
 
 @Component
@@ -194,6 +198,7 @@ public class WorldHandler {
 를 제공합니다.
 
 ```java
+import io.github.u2ware.data.rest.core.annotation.HandleBeforeRead;
 import io.github.u2ware.data.jpa.repository.support.QuerydslPredicateBuilder;
 
 @Component
@@ -226,6 +231,7 @@ public class FooHandler {
 [JpaSpecificationBuilder](src/main/java/io/github/u2ware/data/jpa/repository/query/JpaSpecificationBuilder.java) 를 제공합니다.
 
 ```java
+import io.github.u2ware.data.rest.core.annotation.HandleBeforeRead;
 import io.github.u2ware.data.jpa.repository.query.JpaSpecificationBuilder;
 
 @Component
