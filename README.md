@@ -103,23 +103,6 @@ public interface FooRepository extends PagingAndSortingRepository<Foo, Long>
 |curl '/foos/search'   -X POST -d '{"name" : ...}' |  | search |   [@HandleBeforeRead](#handlebeforeread) | json |
 
 
-```java
-@Component
-@RepositoryEventHandler
-public class FooHandler {
-	
-	@HandleAfterRead
-	public void onAfterRead(Foo entity) { 
-		/* After [GET] /foos/1 -H 'query: true'*/ 
-	}
-	
-	@HandleBeforeRead
-	public void onBeforeRead(Foo entity, Object query) { 
-		/* Before [GET] /foos -H 'query: true' */	
-	}
-}
-```
-
 
 # @HandleAfterRead 
 
@@ -127,6 +110,8 @@ public class FooHandler {
 다음은 Entity 의 읽기 카운트를 1씩 증가 시키는 예시 입니다.
 
 ```java
+import io.github.u2ware.data.rest.core.annotation.HandleAfterRead;
+
 @Component
 @RepositoryEventHandler
 public class ArticleHandler {
