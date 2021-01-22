@@ -26,12 +26,20 @@ hs_err_pid*
 # Maven
 target/
 
-# MacOS
-.DS_Store
-
-
 # Eclipse
 .project
 .classpath
 .springBeans
 .settings/
+
+
+######################
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

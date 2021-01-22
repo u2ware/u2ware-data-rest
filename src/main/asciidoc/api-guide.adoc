@@ -1,0 +1,28 @@
+= Sample Docs
+Version {project-version} kslee@u2ware.com;
+:doctype: book
+:icons: font
+:source-highlighter: highlightjs
+:toc: left
+:toclevels: 2
+:sectlinks:
+
+
+[[overview]]
+= Sample Docs
+Hello
+
+== Overview
+World
+
+=== Foo
+
+=== Bar
+
+=== Baz
+
+
+== Foo
+
+=== create
+include::{snippets}/foos-create/curl-request.adoc[]
