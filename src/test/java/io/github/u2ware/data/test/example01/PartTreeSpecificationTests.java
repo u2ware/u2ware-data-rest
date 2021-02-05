@@ -35,7 +35,7 @@ public class PartTreeSpecificationTests {
 		repository.save(Foo.builder().name("c").age(2).build());
 		repository.save(Foo.builder().name("d").age(2).build());
 		
-		Iterable<Foo> r1 = repository.findAll(new PartTreeSpecification<Foo>("findByName", "a"));
+		Iterable<Foo> r1 = repository.findAll(new PartTreeSpecification<Foo>("findByName", new Object[]{"a"}));
 		Assertions.assertEquals(1, StreamSupport.stream(r1.spliterator(), false).count());
 		
 		
@@ -44,7 +44,7 @@ public class PartTreeSpecificationTests {
 		Assertions.assertEquals(2, StreamSupport.stream(r4.spliterator(), false).count());
 		
 		
-		Iterable<Foo> r5 = repository.findAll(new PartTreeSpecification<Foo>("findByOrderByName"));
+		Iterable<Foo> r5 = repository.findAll(new PartTreeSpecification<Foo>("findByOrderByName", new Object[] {}));
 		Assertions.assertEquals(4, StreamSupport.stream(r5.spliterator(), false).count());
 		
 		

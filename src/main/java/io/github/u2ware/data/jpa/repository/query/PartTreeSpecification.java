@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -63,15 +64,23 @@ public class PartTreeSpecification<T> implements Specification<T>{
 		
 		private Object[] source;
 		private AtomicInteger index;
+		private Map<String,Integer> propertyIndex = new HashMap<>();
 		
-		BeanWrapperObjectArray(Object... source ) {
+		BeanWrapperObjectArray(Object[] source ) {
 			this.source = source;
 			this.index = new AtomicInteger(0);
 		}
 		
 		@Override
 		public Object getPropertyValue(String propertyName) throws BeansException {
-			return source[index.getAndAdd(1)];
+			if(propertyIndex.containsKey(propertyName)) {
+				return source[propertyIndex.get(propertyName)];
+			}
+			
+			int idx = index.getAndAdd(1);
+			if(source.length <= idx) return null;
+			propertyIndex.put(propertyName, idx);
+			return source[idx];
 		}
 	}
 	
@@ -89,7 +98,7 @@ public class PartTreeSpecification<T> implements Specification<T>{
 	public PartTreeSpecification(String source, T params) {
 		this(source, new BeanWrapperImpl(params));
 	}
-	public PartTreeSpecification(String source, Object... params) {
+	public PartTreeSpecification(String source, Object[] params) {
 		this(source, new BeanWrapperObjectArray(params));
 	}
 	public PartTreeSpecification(String source, MultiValueMap<String,Object> params) {
@@ -161,16 +170,19 @@ public class PartTreeSpecification<T> implements Specification<T>{
 	}
 
 	private Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part) {
+		System.err.println(getClass()+" "+part);
 
 		PropertyPath property = part.getProperty();
 		Type type = part.getType();
+		Object value = params.getPropertyValue(part.getProperty().getSegment());
+		if(value == null) return null;
 
 		switch (type) {
 			case BETWEEN:
 //				ParameterMetadata<Comparable> first = provider.next(part);
 //				ParameterMetadata<Comparable> second = provider.next(part);
 //				return builder.between(getComparablePath(root, part), first.getExpression(), second.getExpression());
-				Collection<Comparable> parameters = parameters(root, query, builder, part);
+				Collection<Comparable> parameters = parameters(root, query, builder, part, value);
 				Iterator<Comparable> iterator = parameters.iterator();
 				return builder.between(getComparablePath(root, part), iterator.next(), iterator.next());
 				
@@ -178,21 +190,21 @@ public class PartTreeSpecification<T> implements Specification<T>{
 			case GREATER_THAN:
 //				return builder.greaterThan(getComparablePath(root, part),
 //						provider.next(part, Comparable.class).getExpression());
-				return builder.greaterThan(getComparablePath(root, part), parameter(root, query, builder, part));
+				return builder.greaterThan(getComparablePath(root, part), parameter(root, query, builder, part, value));
 
 			case GREATER_THAN_EQUAL:
 //				return builder.greaterThanOrEqualTo(getComparablePath(root, part),
 //						provider.next(part, Comparable.class).getExpression());
-				return builder.greaterThanOrEqualTo(getComparablePath(root, part), parameter(root, query, builder, part));
+				return builder.greaterThanOrEqualTo(getComparablePath(root, part), parameter(root, query, builder, part, value));
 			case BEFORE:
 			case LESS_THAN:
 //				return builder.lessThan(getComparablePath(root, part), provider.next(part, Comparable.class).getExpression());
-				return builder.lessThan(getComparablePath(root, part), parameter(root, query, builder, part));
+				return builder.lessThan(getComparablePath(root, part), parameter(root, query, builder, part, value));
 				
 			case LESS_THAN_EQUAL:
 //				return builder.lessThanOrEqualTo(getComparablePath(root, part),
 //						provider.next(part, Comparable.class).getExpression());
-				return builder.lessThanOrEqualTo(getComparablePath(root, part), parameter(root, query, builder, part));
+				return builder.lessThanOrEqualTo(getComparablePath(root, part), parameter(root, query, builder, part, value));
 				
 			case IS_NULL:
 				return getTypedPath(root, part).isNull();
@@ -201,11 +213,11 @@ public class PartTreeSpecification<T> implements Specification<T>{
 			case NOT_IN:
 				// cast required for eclipselink workaround, see DATAJPA-433
 //				return upperIfIgnoreCase(getTypedPath(root, part)).in((Expression<Collection<?>>) provider.next(part, Collection.class).getExpression()).not();
-				return upperIfIgnoreCase(builder, getTypedPath(root, part), part).in(parameters(root, query, builder, part)).not();
+				return upperIfIgnoreCase(builder, getTypedPath(root, part), part).in(parameters(root, query, builder, part, value)).not();
 			case IN:
 				// cast required for eclipselink workaround, see DATAJPA-433
 //				return upperIfIgnoreCase(getTypedPath(root, part)).in((Expression<Collection<?>>) provider.next(part, Collection.class).getExpression());
-				return upperIfIgnoreCase(builder, getTypedPath(root, part), part).in(parameters(root, query, builder, part));
+				return upperIfIgnoreCase(builder, getTypedPath(root, part), part).in(parameters(root, query, builder, part, value));
 			case STARTING_WITH:
 			case ENDING_WITH:
 			case CONTAINING:
@@ -220,7 +232,7 @@ public class PartTreeSpecification<T> implements Specification<T>{
 //					return type.equals(NOT_CONTAINING) ? isNotMember(builder, parameterExpression, propertyExpression)
 //							: isMember(builder, parameterExpression, propertyExpression);
 					Expression<Collection<Object>> propertyExpression = traversePath(root, property);
-					Expression<Object> parameterExpression = parameter(root, query, builder, part);
+					Expression<Object> parameterExpression = parameter(root, query, builder, part, value);
 					return type.equals(NOT_CONTAINING) 
 							? isNotMember(builder, parameterExpression, propertyExpression)
 							: isMember(builder, parameterExpression, propertyExpression);
@@ -234,7 +246,7 @@ public class PartTreeSpecification<T> implements Specification<T>{
 //				Expression<String> parameterExpression = upperIfIgnoreCase(provider.next(part, String.class).getExpression());
 //				Predicate like = builder.like(propertyExpression, parameterExpression, escape.getEscapeCharacter());
 //				return type.equals(NOT_LIKE) || type.equals(NOT_CONTAINING) ? like.not() : like;
-				Predicate like = builder.like(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part));
+				Predicate like = builder.like(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part, value));
 				return type.equals(NOT_LIKE) || type.equals(NOT_CONTAINING) ? like.not() : like;
 
 			case TRUE:
@@ -248,14 +260,14 @@ public class PartTreeSpecification<T> implements Specification<T>{
 //				Expression<Object> path = getTypedPath(root, part);
 //				return expression.isIsNullParameter() ? path.isNull()
 //						: builder.equal(upperIfIgnoreCase(path), upperIfIgnoreCase(expression.getExpression()));
-				return builder.equal(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part));
+				return builder.equal(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part, value));
 
 				
 				
 			case NEGATING_SIMPLE_PROPERTY:
 //				return builder.notEqual(upperIfIgnoreCase(getTypedPath(root, part)),
 //						upperIfIgnoreCase(provider.next(part).getExpression()));
-				return builder.notEqual(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part));
+				return builder.notEqual(upperIfIgnoreCase(builder, getTypedPath(root, part), part), parameter(root, query, builder, part, value));
 			case IS_EMPTY:
 			case IS_NOT_EMPTY:
 
@@ -322,10 +334,10 @@ public class PartTreeSpecification<T> implements Specification<T>{
 	///////////////////////////
 	// Add
 	//////////////////////////
-	private <X> Collection<X> parameters(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part) {
+	private <X> Collection<X> parameters(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part, Object value) {
 
-		Object value = params.getPropertyValue(part.getProperty().getSegment());
-		if(value == null) return null;
+//		Object value = params.getPropertyValue(part.getProperty().getSegment());
+//		if(value == null) return null;
 		
 		
 		Collection<X> collection = null;
@@ -350,10 +362,12 @@ public class PartTreeSpecification<T> implements Specification<T>{
 		return result;//.iterator();
 	}
 	
-	private <X> Expression<X> parameter(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part) {
+	private <X> Expression<X> parameter(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part, Object value) {
 		
-		Object value = params.getPropertyValue(part.getProperty().getSegment());
-		if(value == null) return null;
+//		Object value = params.getPropertyValue(part.getProperty().getSegment());
+//		System.err.println(getClass()+" 4 "+value);
+//		System.err.println(getClass()+" 4 "+value);
+//		if(value == null) return null;
 
 		Object result = value;
 		if (value instanceof Collection) {

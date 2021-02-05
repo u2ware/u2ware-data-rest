@@ -227,7 +227,7 @@ public class JpaSpecificationBuilder<T> {
 
 		private P criteria(String source, Object value) {
 			if(value == null) return parent;
-			return criteria( new PartTreeSpecification<>(source, value));
+			return criteria( new PartTreeSpecification<>(source, new Object[] {value}));
 		}
 				
 		public P isNull(String property){
