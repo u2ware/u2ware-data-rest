@@ -170,7 +170,6 @@ public class PartTreeSpecification<T> implements Specification<T>{
 	}
 
 	private Predicate toPredicate(Root<T> root, CriteriaQuery<?> query, CriteriaBuilder builder, Part part) {
-		System.err.println(getClass()+" "+part);
 
 		PropertyPath property = part.getProperty();
 		Type type = part.getType();
