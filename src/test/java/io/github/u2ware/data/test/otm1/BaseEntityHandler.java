@@ -2,13 +2,10 @@ package io.github.u2ware.data.test.otm1;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.core.convert.ConversionService;
 import org.springframework.data.rest.core.annotation.HandleBeforeCreate;
-import org.springframework.data.rest.core.annotation.HandleBeforeSave;
 import org.springframework.data.rest.core.annotation.RepositoryEventHandler;
 import org.springframework.stereotype.Component;
+
 
 @RepositoryEventHandler(BaseEntity.class)
 @Component
@@ -36,10 +33,11 @@ public class BaseEntityHandler  {
 //	private @Autowired ManyToOneEntityRepository ManyToOneEntityRepository;
 //	private @Autowired ResourceMappings resourceMappings;
 
-//	@HandleBeforeCreate
-//	public void handleBeforeCreate(BaseEntity e){
-//		System.err.println("handleBeforeCreate "+e);
-//	}
+	@HandleBeforeCreate
+	public void handleBeforeCreate(BaseEntity e){
+		System.err.println("handleBeforeCreate "+e);
+//		e.getOneToManyEntities().add(OneToManyEntity.builder().name(""+System.currentTimeMillis()).build());
+	}
 //	
 //	@HandleAfterCreate
 //	public void HandleAfterCreate(BaseEntity e){

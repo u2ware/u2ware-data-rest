@@ -1,7 +1,5 @@
 package io.github.u2ware.data.test.mto3;
 
-import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.Test;
@@ -73,6 +71,13 @@ public class ApplicationTests {
 		$.POST("/baseEntities").H().C("name", "e1-post").C("manyToOneEntity", "{mtoLink1}").is2xx().andExpect("manyToOneEntity.name", "mto_a").andReturn("e1");
 		$.POST("/baseEntities").H().C("name", "e2-post").C("manyToOneEntity", "{mtoJson1.$}").is2xx().andExpect("manyToOneEntity.name", "mto_c").andReturn("e2");
 		
+
+		//////////////////////////////
+		// PUT (Bypass... No Changed...)
+		//////////////////////////////
+		$.GET("{e1}").H().is2xx().andReturn("i");
+		$.PUT("{e1}").H().C($.variables().resolveValue("{i.$}")).is2xx();
+		$.GET("{e1}").H().is2xx().andExpect("manyToOneEntity.name", "mto_a").andReturn("e1");
 		
 		//////////////////////////////
 		// PUT(Create) -> link(O) json(O)
@@ -92,15 +97,10 @@ public class ApplicationTests {
 		
 		
 		//////////////////////////////////////////
-		// 
+		// DELETE
 		//////////////////////////////////////////
-		$.GET("{e1}").is2xx().andReturn("e1");
-		$.GET("{e2}").is2xx().andReturn("e2");
+		$.DELETE("{e1}").is2xx();
+		$.DELETE("{e2}").is2xx();
 		
-		@SuppressWarnings({ "unchecked", "rawtypes" })
-		Map<String,Object> b1 = (Map)$.variables().resolveValue("{e1.$}"); 
-		b1.put("name", "hello");
-		
-		$.PUT("{e1}").H().C(b1).is2xx().andExpect("name", "hello");
 	}
 }

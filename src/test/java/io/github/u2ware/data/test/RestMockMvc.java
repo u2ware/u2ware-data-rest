@@ -195,6 +195,10 @@ public class RestMockMvc {
 			return this;
 		}
 		
+		public MockMvcRequestSupport C(String contentValue) throws Exception{
+			this.contentValue = contentValue != null ? variables.resolveValue(contentValue) : null;
+			return this;
+		}
 		public MockMvcRequestSupport C(Object contentValue) throws Exception{
 			this.contentValue = contentValue; return this;
 		}
